@@ -1,0 +1,17 @@
+# Dataset folders
+test_dir/
+train_dir/
+
+# Python
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual environment
+venv/
+.venv/
+
+# Environment files
+.env

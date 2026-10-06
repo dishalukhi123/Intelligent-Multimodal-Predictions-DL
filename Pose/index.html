@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Dance Pose Song Recognition</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+<style>
+body{font-family:Arial;background:#18263a;color:white;text-align:center;padding:20px}
+button{padding:12px 24px;margin:8px;border:0;border-radius:8px;font-size:16px}
+#start{background:#28a745;color:white}#stop{background:#dc3545;color:white}
+canvas{width:500px;max-width:95%;border:3px solid white;border-radius:12px}
+#song{font-size:28px;font-weight:bold;margin:15px}
+.pred{max-width:600px;margin:12px auto;text-align:left}.bg{height:20px;background:#444;border-radius:10px}.bar{height:100%;background:#00ff88;border-radius:10px}
+</style>
+</head>
+<body>
+<h1>🎵 Dance Pose Song Recognition</h1>
+<button id="start" onclick="init()">▶ Start Camera</button>
+<button id="stop" onclick="stopCamera()" disabled>⏹ Stop Camera</button>
+<p id="status">Camera not started</p>
+<canvas id="canvas"></canvas>
+<div id="song">Waiting...</div><div id="confidence">Confidence: 0%</div>
+<div id="predictions"></div>
+<script>
+const URL="./my_model/";
+let model,webcam,ctx,maxPredictions,running=false;
+async function init(){
+try{
+document.getElementById("status").innerText="Loading model...";
+document.getElementById("start").disabled=true;
+model=await tmPose.load(URL+"model.json",URL+"metadata.json");
+maxPredictions=model.getTotalClasses();
+webcam=new tmPose.Webcam(500,500,true);
+await webcam.setup(); await webcam.play();
+const canvas=document.getElementById("canvas");canvas.width=500;canvas.height=500;ctx=canvas.getContext("2d");
+const box=document.getElementById("predictions");box.innerHTML="";
+for(let i=0;i<maxPredictions;i++){
+let d=document.createElement("div");d.className="pred";
+d.innerHTML='<div id="label-'+i+'"></div><div class="bg"><div class="bar" id="bar-'+i+'"></div></div>';
+box.appendChild(d);}
+running=true;document.getElementById("stop").disabled=false;
+document.getElementById("status").innerText="✅ Camera started - Show your pose";
+requestAnimationFrame(loop);
+}catch(e){console.error(e);document.getElementById("status").innerText="❌ "+e.message;document.getElementById("start").disabled=false;}
+}
+async function loop(){
+if(!running)return;webcam.update();await predict();requestAnimationFrame(loop);
+}
+async function predict(){
+const r=await model.estimatePose(webcam.canvas);
+const prediction=await model.predict(r.posenetOutput);
+let best=0,bestP=0;
+for(let i=0;i<maxPredictions;i++){
+let p=prediction[i].probability;
+document.getElementById("label-"+i).innerText=prediction[i].className+" : "+(p*100).toFixed(1)+"%";
+document.getElementById("bar-"+i).style.width=(p*100)+"%";
+if(p>bestP){bestP=p;best=i;}
+}
+document.getElementById("song").innerText=prediction[best].className;
+document.getElementById("confidence").innerText="Confidence: "+(bestP*100).toFixed(1)+"%";
+ctx.drawImage(webcam.canvas,0,0);
+if(r.pose){tmPose.drawKeypoints(r.pose.keypoints,.5,ctx);tmPose.drawSkeleton(r.pose.keypoints,.5,ctx);}
+}
+function stopCamera(){
+running=false;if(webcam)webcam.stop();if(ctx)ctx.clearRect(0,0,500,500);
+document.getElementById("status").innerText="Camera stopped";
+document.getElementById("song").innerText="Waiting...";
+document.getElementById("confidence").innerText="Confidence: 0%";
+document.getElementById("start").disabled=false;document.getElementById("stop").disabled=true;
+}
+</script>
+</body>
+</html>
